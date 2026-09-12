@@ -57,6 +57,7 @@ float timeScale = 1.0f;
 float orbitTime = 0.0f;
 float spinTime = 0.0f;
 int debugMode = 0; // 0=penuh, 1=diffuse saja, 2=emission saja, 3=peta diff
+int captureAt = -1; // >0: mode capture deterministik (mouse diabaikan)
 
 void savePPM(const char* path, int width, int height)
 {
@@ -72,7 +73,6 @@ void savePPM(const char* path, int width, int height)
 int main(int argc, char** argv)
 {
     // CLI debug: --capture <frame> <file.ppm> [--debug <0-3>]
-    int captureAt = -1;
     std::string capturePath;
     for (int i = 1; i < argc; ++i) {
         std::string a = argv[i];
@@ -326,8 +326,14 @@ int main(int argc, char** argv)
         // -------------------------------------------------------------------------------
         // capture framebuffer ke PPM lalu keluar (untuk analisis/laporan)
         if (captureAt > 0 && ++frameIndex >= captureAt) {
+            int fbw = 0, fbh = 0;
+            glfwGetFramebufferSize(window, &fbw, &fbh);
+            GLint vp[4]; glGetIntegerv(GL_VIEWPORT, vp);
             savePPM(capturePath.c_str(), SCR_WIDTH, SCR_HEIGHT);
-            std::cout << "[CAPTURE] frame " << frameIndex << " -> " << capturePath << std::endl;
+            std::cout << "[CAPTURE] frame " << frameIndex << " -> " << capturePath
+                      << " orbitTime=" << orbitTime << " spinTime=" << spinTime
+                      << " fb=" << fbw << "x" << fbh
+                      << " vp=" << vp[0] << "," << vp[1] << "," << vp[2] << "," << vp[3] << std::endl;
             glfwSetWindowShouldClose(window, true);
         }
 
@@ -404,6 +410,7 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 // -------------------------------------------------------
 void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
 {
+    if (captureAt > 0) return; // capture deterministik: abaikan mouse
     float xpos = static_cast<float>(xposIn);
     float ypos = static_cast<float>(yposIn);
 
