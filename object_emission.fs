@@ -22,6 +22,7 @@ in vec3 Normal;
 uniform vec3 viewPos;
 uniform Material material;
 uniform Light light;
+uniform int debugMode; // 0=penuh, 1=diffuse saja, 2=emission saja, 3=peta diff
 
 void main()
 {
@@ -44,15 +45,14 @@ void main()
         specular = light.specular * spec * texture(material.specular, TexCoords).rgb;
     }
     
-    // emission
-    vec3 emission = vec3(0.0);
+    // emission (lampu kota): hanya di sisi malam, fade halus saat senja
     vec3 emissionIntensity = texture(material.emission, TexCoords).rgb;
-
-    // Cek apakah diff kurang dari 0.1 dan semua komponen dari emissionIntensity lebih besar dari 0.1
-    if (diff < 0.1 && all(greaterThan(emissionIntensity, vec3(0.1)))) {
-        emission = emissionIntensity;
-    }
+    float nightFactor = 1.0 - smoothstep(0.0, 0.25, diff);
+    vec3 emission = emissionIntensity * nightFactor;
     
     vec3 result = ambient + diffuse + specular + emission;
+    if (debugMode == 1) result = diffuse;
+    else if (debugMode == 2) result = emission;
+    else if (debugMode == 3) result = vec3(diff);
     FragColor = vec4(result, 1.0);
 } 

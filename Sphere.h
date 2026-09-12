@@ -76,8 +76,8 @@ public:
 
 				// Vertex normal
 				nx = x * lengthInv;
-				ny = z * lengthInv;
-				nz = y * lengthInv;
+				ny = y * lengthInv;
+				nz = z * lengthInv;
 				sphere_vertices.push_back(nx);
 				sphere_vertices.push_back(ny);
 				sphere_vertices.push_back(nz);
@@ -177,7 +177,7 @@ public:
 		glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (GLvoid*)(3 * sizeof(GLfloat)));
 		glEnableVertexAttribArray(1);
 
-		glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (GLvoid*)(6 * sizeof(GLfloat)));
+		glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (GLvoid*)(5 * sizeof(GLfloat)));
 		glEnableVertexAttribArray(2);
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 		glBindVertexArray(0);

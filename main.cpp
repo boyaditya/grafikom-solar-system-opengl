@@ -14,6 +14,9 @@
 
 #include <iostream>
 #include <vector>
+#include <fstream>
+#include <string>
+#include <cstdlib>
 using namespace std;
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
@@ -28,7 +31,7 @@ const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
 
 // camera
-Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
+Camera camera(glm::vec3(0.0f, 4.0f, 14.0f));
 float lastX = SCR_WIDTH / 2.0f;
 float lastY = SCR_HEIGHT / 2.0f;
 bool firstMouse = true;
@@ -40,9 +43,45 @@ float lastFrame = 0.0f;
 // lighting
 glm::vec3 containerPos(5.0f, 0.0f, 0.0f);
 
-float PlanetSpeed = .1f;
-int main()
+// Skala waktu simulasi: 1 tahun = 60 detik, 1 hari = 15 detik (4 hari/tahun)
+float yearLength = 60.0f;
+float dayLength = 15.0f;
+float orbitRadius = 5.0f;
+float axialTilt = 23.4f;
+
+// Kontrol simulasi (debug/demo): SPACE=pause, R=bekukan rotasi, O=bekukan orbit, UP/DOWN=kecepatan
+bool paused = false;
+bool freezeRotation = false;
+bool freezeOrbit = false;
+float timeScale = 1.0f;
+float orbitTime = 0.0f;
+float spinTime = 0.0f;
+int debugMode = 0; // 0=penuh, 1=diffuse saja, 2=emission saja, 3=peta diff
+
+void savePPM(const char* path, int width, int height)
 {
+    std::vector<unsigned char> px(width * height * 3);
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
+    glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, px.data());
+    std::ofstream f(path, std::ios::binary);
+    f << "P6\n" << width << " " << height << "\n255\n";
+    for (int y = height - 1; y >= 0; --y)
+        f.write(reinterpret_cast<char*>(px.data() + y * width * 3), width * 3);
+}
+
+int main(int argc, char** argv)
+{
+    // CLI debug: --capture <frame> <file.ppm> [--debug <0-3>]
+    int captureAt = -1;
+    std::string capturePath;
+    for (int i = 1; i < argc; ++i) {
+        std::string a = argv[i];
+        if (a == "--capture" && i + 2 < argc) { captureAt = std::atoi(argv[++i]); capturePath = argv[++i]; }
+        else if (a == "--debug" && i + 1 < argc) { debugMode = std::atoi(argv[++i]); }
+        else if (a == "--orbit-time" && i + 1 < argc) { orbitTime = (float)std::atof(argv[++i]); freezeOrbit = true; }
+        else if (a == "--spin-time" && i + 1 < argc) { spinTime = (float)std::atof(argv[++i]); freezeRotation = true; }
+    }
+    int frameIndex = 0;
     // glfw: initialize and configure
     // ------------------------------
     glfwInit();
@@ -181,6 +220,7 @@ int main()
 
     // render loop
     // -----------
+    std::cout << "Kontrol: WASD+mouse=kamera, SPACE=pause, R=bekukan rotasi, O=bekukan orbit, UP/DOWN=kecepatan, 1-4=mode cahaya" << std::endl;
     while (!glfwWindowShouldClose(window))
     {
         // per-frame time logic
@@ -199,30 +239,32 @@ int main()
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // ------ EARTH ------
-        // world transformation
-        float rotationSpeed = 0.2f; // Kecepatan rotasi
-        float currentTime = glfwGetTime();
-        // Update waktu atau sudut rotasi
-        currentTime = glfwGetTime();
+        // Waktu simulasi (terpengaruh pause / timeScale / freeze)
+        if (!paused) {
+            if (!freezeOrbit) orbitTime += deltaTime * timeScale;
+            if (!freezeRotation) spinTime += deltaTime * timeScale;
+        }
 
-        // Update posisi cahaya untuk membuat light cube berputar
-        containerPos.x = -5.0f * cos(rotationSpeed / 5.0f * currentTime);
-        containerPos.z = -5.0f * sin(rotationSpeed / 5.0f * currentTime);
+        // Revolusi: 1 orbit penuh per yearLength detik (prograde, berlawanan jarum jam dari kutub utara)
+        float orbitAngle = 2.0f * 3.14159265f * orbitTime / yearLength;
+        containerPos.x = orbitRadius * cos(orbitAngle);
+        containerPos.z = -orbitRadius * sin(orbitAngle);
         containerPos.y = 0.0f;
 
 
         // be sure to activate shader when setting uniforms/drawing objects
         objectShader.use();
+        objectShader.setInt("debugMode", debugMode);
         objectShader.setVec3("light.position", glm::vec3 (0.0f, 0.0f, 0.0f));
         objectShader.setVec3("viewPos", camera.Position);
 
         // light properties
         objectShader.setVec3("light.ambient", 0.1f, 0.1f, 0.1f);
         objectShader.setVec3("light.diffuse", 0.7f, 0.7f, 0.7f);
-        objectShader.setVec3("light.specular", 1.0f, 1.0f, 1.0f);
+        objectShader.setVec3("light.specular", 0.5f, 0.5f, 0.5f);
 
         // material properties
-        objectShader.setFloat("material.shininess", 16.0f);
+        objectShader.setFloat("material.shininess", 64.0f);
 
         // view/projection transformations
         glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
@@ -232,8 +274,8 @@ int main()
 
         glm::mat4 model_earth = glm::mat4(1.0f);
         model_earth = glm::translate(model_earth, containerPos);
-        model_earth = glm::rotate(model_earth, glm::radians(35.0f), glm::vec3(0.0f, 1.0f, 0.0f)); // Rotasi bumi
-        model_earth = glm::rotate(model_earth, glm::radians(rotationSpeed * currentTime * -10.0f), glm::vec3(0.0f, 1.0f, 0.0f)); // Rotasi bumi
+        model_earth = glm::rotate(model_earth, glm::radians(axialTilt), glm::vec3(0.0f, 0.0f, 1.0f)); // Kemiringan sumbu 23.4 derajat
+        model_earth = glm::rotate(model_earth, 2.0f * 3.14159265f * spinTime / dayLength, glm::vec3(0.0f, 1.0f, 0.0f)); // Rotasi harian prograde
         objectShader.setMat4("model", model_earth);
 
         // bind diffuse map
@@ -259,10 +301,7 @@ int main()
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, sun_tex);
         
-        glm::mat4 model_sun;
-        model_sun = glm::mat4(1.0f);
-        model_sun = glm::translate(model_sun, glm::vec3(0.0f, 0.0f, 0.0f));
-        model_sun = glm::rotate(model_sun, -1.0f * glm::radians(rotationSpeed * currentTime), glm::vec3(0.0f, 1.0f, 0.0f));
+        glm::mat4 model_sun = glm::mat4(1.0f); // Matahari diam di pusat sebagai sumber cahaya
         sunShader.setMat4("model", model_sun);
 
         Sun.Draw();
@@ -285,6 +324,13 @@ int main()
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
+        // capture framebuffer ke PPM lalu keluar (untuk analisis/laporan)
+        if (captureAt > 0 && ++frameIndex >= captureAt) {
+            savePPM(capturePath.c_str(), SCR_WIDTH, SCR_HEIGHT);
+            std::cout << "[CAPTURE] frame " << frameIndex << " -> " << capturePath << std::endl;
+            glfwSetWindowShouldClose(window, true);
+        }
+
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
@@ -315,6 +361,34 @@ void processInput(GLFWwindow *window)
         camera.ProcessKeyboard(LEFT, deltaTime);
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         camera.ProcessKeyboard(RIGHT, deltaTime);
+
+    // Kontrol simulasi (edge-triggered: sekali tekan = sekali toggle)
+    static bool spaceHeld = false, rHeld = false, oHeld = false;
+    static bool numHeld[4] = { false, false, false, false };
+    bool space = glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS;
+    bool r = glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS;
+    bool o = glfwGetKey(window, GLFW_KEY_O) == GLFW_PRESS;
+    if (space && !spaceHeld) { paused = !paused; std::cout << (paused ? "[SIM] paused" : "[SIM] running") << std::endl; }
+    if (r && !rHeld) { freezeRotation = !freezeRotation; std::cout << "[SIM] rotasi " << (freezeRotation ? "BEKU" : "jalan") << std::endl; }
+    if (o && !oHeld) { freezeOrbit = !freezeOrbit; std::cout << "[SIM] orbit " << (freezeOrbit ? "BEKU" : "jalan") << std::endl; }
+    spaceHeld = space; rHeld = r; oHeld = o;
+
+    // Tombol 1-4: mode tampilan cahaya (0=penuh, 1=diffuse, 2=emission, 3=peta diff)
+    const int numKeys[4] = { GLFW_KEY_1, GLFW_KEY_2, GLFW_KEY_3, GLFW_KEY_4 };
+    for (int i = 0; i < 4; ++i) {
+        bool k = glfwGetKey(window, numKeys[i]) == GLFW_PRESS;
+        if (k && !numHeld[i]) { debugMode = i; std::cout << "[SIM] debugMode=" << i << std::endl; }
+        numHeld[i] = k;
+    }
+
+    if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
+        timeScale += deltaTime * 2.0f;
+        if (timeScale > 4.0f) timeScale = 4.0f;
+    }
+    if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) {
+        timeScale -= deltaTime * 2.0f;
+        if (timeScale < 0.1f) timeScale = 0.1f;
+    }
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
