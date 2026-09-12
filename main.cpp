@@ -124,9 +124,9 @@ int main(int argc, char** argv)
 
     // build and compile our shader zprogram
     // ------------------------------------
-    Shader objectShader("object.vs", "object_emission.fs");
-    Shader sunShader("light_source.vs", "light_source.fs");
-    Shader skyboxShader("skybox.vs", "skybox.fs");
+    Shader objectShader("shaders/object.vs", "shaders/object_emission.fs");
+    Shader sunShader("shaders/light_source.vs", "shaders/light_source.fs");
+    Shader skyboxShader("shaders/skybox.vs", "shaders/skybox.fs");
 
     // set up vertex data (and buffer(s)) and configure vertex attributes
     Sphere_light Sun(3.0f, 36 * 5, 18 * 5);
