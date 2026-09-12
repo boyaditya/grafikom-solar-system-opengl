@@ -3,13 +3,13 @@
   "tasks": [
     {
       "type": "cppbuild",
-      "label": "C/C++: g++.exe build active file",
+      "label": "C/C++: g++.exe build project",
       "command": "C:\\w64devkit\\bin\\g++.exe",
       "args": [
-        "${fileDirname}\\main.cpp",
+        "${workspaceFolder}\\main.cpp",
         "C:\\w64devkit\\include\\glad.c",
         "-o",
-        "${fileDirname}\\main.exe",
+        "${workspaceFolder}\\main.exe",
         "-I",
         "C:\\w64devkit\\include",
         "-L",
@@ -19,7 +19,7 @@
         "-lgdi32"
       ],
       "options": {
-        "cwd": "${fileDirname}",
+        "cwd": "${workspaceFolder}",
         "env": {
           "Path": "C:\\w64devkit\\bin;${env:Path}"
         }
