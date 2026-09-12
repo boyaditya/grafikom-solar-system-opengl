@@ -1,0 +1,12 @@
+{
+    "C_Cpp.default.compilerPath": "C:\\w64devkit\\bin\\g++.exe",
+    "files.associations": {
+        "*.ejs": "html",
+        "*.rmd": "markdown",
+        "iostream": "cpp",
+        "iosfwd": "cpp",
+        "vector": "cpp",
+        "string": "cpp",
+        "cmath": "cpp"
+    }
+}

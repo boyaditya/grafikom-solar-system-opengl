@@ -1,0 +1,10 @@
+# Build output
+*.exe
+*.dll
+*.o
+*.obj
+*.a
+
+# Editor
+.vscode/ipch/
+*.code-workspace
