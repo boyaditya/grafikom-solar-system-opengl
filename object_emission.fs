@@ -42,7 +42,10 @@ void main()
     vec3 specular = vec3(0.0);
     
     if (diff > 0.0) {
-        specular = light.specular * spec * texture(material.specular, TexCoords).rgb;
+        // Masker skalar dari channel merah: pantulan selalu putih netral,
+        // apapun tint yang ada di file specular map
+        float specMask = texture(material.specular, TexCoords).r;
+        specular = light.specular * spec * specMask;
     }
     
     // emission (lampu kota): hanya di sisi malam, fade halus saat senja

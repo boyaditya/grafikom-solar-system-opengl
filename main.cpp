@@ -438,7 +438,10 @@ unsigned int loadTexture(char const * path)
     glGenTextures(1, &textureID);
 
     int width, height, nrComponents;
-    unsigned char *data = stbi_load(path, &width, &height, &nrComponents, 0);
+    // Minta 3 channel (RGB): tekstur grayscale 1-channel ikut mengembang,
+    // supaya tidak ter-upload sebagai GL_RED yang terbaca sebagai (R,0,0) alias merah
+    unsigned char *data = stbi_load(path, &width, &height, &nrComponents, 3);
+    nrComponents = 3;
     if (data)
     {
         GLenum format;
